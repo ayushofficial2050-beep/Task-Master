@@ -1,0 +1,44 @@
+name: task_master_hero
+description: A productivity app by FST Havoc.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Data Saving
+  shared_preferences: ^2.2.0
+  # Design & Fonts
+  google_fonts: ^5.1.0
+  lucide_icons: ^0.2.0
+  confetti: ^0.7.0
+  # Date & Time Utils
+  intl: ^0.18.0
+  timezone: ^0.9.2
+  # Notifications (Background)
+  flutter_local_notifications: ^14.1.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # App Icon Generator
+  flutter_launcher_icons: ^0.13.1
+
+flutter:
+  uses-material-design: true
+  
+  # YAHAN SE LOGO SPLASH SCREEN KE LIYE UTHEGA
+  assets:
+    - logo.png
+
+# --- APP ICON CONFIGURATION ---
+# Ye niche wala part tumhare logo.png ko
+# Mobile Home Screen ka Icon banayega
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: "logo.png"
+  min_sdk_android: 21

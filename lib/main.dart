@@ -11,24 +11,38 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // =================================================================
-// GLOBAL CONFIGURATION & NOTIFICATION SETUP
+// GLOBAL CONFIGURATION & SETUP
 // =================================================================
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 final ValueNotifier<ThemeMode> _themeNotifier = ValueNotifier(ThemeMode.dark);
 
 void main() async {
+  // 1. App Start hone se pehle bindings ensure karo
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 1. Load Theme Preference
+  // 2. Theme Preference Load karo
   final prefs = await SharedPreferences.getInstance();
   final isDark = prefs.getBool('isDark') ?? true;
   _themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
 
-  // 2. Initialize Notifications
-  const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-  final InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  // 3. Initialize Notifications (CRASH PROOF METHOD) 🛡️
+  // Hum isse Try-Catch me daal rahe hain taaki agar icon na mile to app band na ho.
+  try {
+    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+    
+    await flutterLocalNotificationsPlugin.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (details) {},
+    );
+  } catch (e) {
+    // Agar error aaya to console me dikhega, par user ka app band nahi hoga
+    print("⚠️ Notification Init Error: $e");
+  }
 
   runApp(const TaskMasterApp());
 }
@@ -45,7 +59,7 @@ class TaskMasterApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'TaskMaster Hero',
           themeMode: mode,
-          // Light Theme Definition
+          // --- Light Theme ---
           theme: ThemeData(
             brightness: Brightness.light,
             scaffoldBackgroundColor: const Color(0xFFF2F4F7),
@@ -56,7 +70,7 @@ class TaskMasterApp extends StatelessWidget {
             textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
             useMaterial3: true,
           ),
-          // Dark Theme Definition
+          // --- Dark Theme ---
           darkTheme: ThemeData(
             brightness: Brightness.dark,
             scaffoldBackgroundColor: const Color(0xFF0A0A0A),
@@ -75,7 +89,7 @@ class TaskMasterApp extends StatelessWidget {
 }
 
 // =================================================================
-// 1. SPLASH SCREEN (With Your Custom Logo)
+// 1. SPLASH SCREEN (Logo Fix applied)
 // =================================================================
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -94,13 +108,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.forward();
     
-    // Navigate to Home after 2.5 seconds
+    // 2.5 second baad Home Screen par bhejo
     Timer(const Duration(milliseconds: 2500), () {
-      Navigator.of(context).pushReplacement(PageRouteBuilder(
-        pageBuilder: (_, __, ___) => const TodoHome(),
-        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
-        transitionDuration: const Duration(milliseconds: 800)
-      ));
+      if (mounted) {
+        Navigator.of(context).pushReplacement(PageRouteBuilder(
+          pageBuilder: (_, __, ___) => const TodoHome(),
+          transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+          transitionDuration: const Duration(milliseconds: 800)
+        ));
+      }
     });
   }
 
@@ -112,7 +128,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // Splash is always Dark/Black for cinematic feel
+    // Splash screen hamesha Black rahega (Cinematic look)
     return Scaffold(
       backgroundColor: Colors.black, 
       body: Center(
@@ -124,8 +140,17 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF6C63FF).withOpacity(0.1)),
-                // UPDATED: Uses logo.png instead of generic icon
-                child: Image.asset('logo.png', width: 120, height: 120, errorBuilder: (c, o, s) => const Icon(LucideIcons.checkCircle, size: 80, color: Color(0xFF6C63FF))),
+                // UPDATED: Logo Handling 🖼️
+                // Ye root folder se logo.png uthayega.
+                // Agar nahi mila to Backup Icon dikhayega.
+                child: Image.asset(
+                  'logo.png', 
+                  width: 120, 
+                  height: 120, 
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(LucideIcons.checkCircle, size: 80, color: Color(0xFF6C63FF));
+                  },
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -140,7 +165,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 }
 
 // =================================================================
-// 2. INFO SCREENS (Privacy & About - Dynamic)
+// 2. INFO SCREENS (About & Privacy)
 // =================================================================
 
 class InfoScreen extends StatelessWidget {
@@ -153,7 +178,6 @@ class InfoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Define content based on type
     List<Widget> contentWidgets = [];
     if (contentType == 'privacy') {
       contentWidgets = [
@@ -161,7 +185,7 @@ class InfoScreen extends StatelessWidget {
         _sectionBody("Welcome to TaskMasterHero. We prioritize your privacy. This app functions primarily as an offline Native App."),
         const SizedBox(height: 15),
         _sectionTitle("2. Data Collection", theme),
-        _sectionBody("We do not store your tasks on our servers. All task data is stored locally on your device via SharedPreferences. If you clear your app data/cache, your tasks may be lost."),
+        _sectionBody("We do not store your tasks on our servers. All task data is stored locally on your device via SharedPreferences. If you clear your app data, tasks will be lost."),
         const SizedBox(height: 15),
         _sectionTitle("3. Permissions", theme),
         _sectionBody("We ask for Notification permissions solely to remind you of your pending tasks."),
@@ -169,13 +193,13 @@ class InfoScreen extends StatelessWidget {
     } else {
       contentWidgets = [
         _sectionTitle("About TaskMaster", theme),
-        _sectionBody("TaskMaster Hero is designed to keep you productive without distractions. Built with a focus on speed, aesthetics, and simplicity."),
+        _sectionBody("TaskMaster Hero is designed to keep you productive without distractions. Built with a focus on speed and simplicity."),
         const SizedBox(height: 15),
         _sectionTitle("Developer", theme),
         _sectionBody("Developed by FST Havoc (Ayush Tiwari)."),
         const SizedBox(height: 15),
         _sectionTitle("Version", theme),
-        _sectionBody("v8.0.0 (Native Build)"),
+        _sectionBody("v1.0.0 (Native Build)"),
       ];
     }
 
@@ -184,7 +208,7 @@ class InfoScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          Text(contentType == 'privacy' ? "Last updated: January 2026" : "Made with ❤️ in India", style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold)),
+          Text(contentType == 'privacy' ? "Last updated: Jan 2026" : "Made with ❤️ in India", style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           ...contentWidgets,
           const SizedBox(height: 15),
@@ -212,7 +236,7 @@ class InfoScreen extends StatelessWidget {
 }
 
 // =================================================================
-// 3. MAIN HOME SCREEN
+// 3. MAIN HOME SCREEN (Core Logic)
 // =================================================================
 class TodoHome extends StatefulWidget {
   const TodoHome({super.key});
@@ -232,10 +256,9 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
   bool isMenuOpen = false;
   bool isBulkMode = false;
   int? currentEditId;
-
   Timer? _notificationTimer;
 
-  // Constants
+  // Colors
   final Color cPrimary = const Color(0xFF6C63FF);
   final Color cEnergyHigh = const Color(0xFFFF6B6B);
   final Color cEnergyLow = const Color(0xFF1DD1A1);
@@ -246,8 +269,15 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
     _loadTodos();
-    _requestPermissions();
-    _startNotificationLoop(); // Start the background logic
+    
+    // Permission maangne ke liye Safe Mode
+    try {
+      _requestPermissions();
+    } catch (e) {
+      print("Permission Request Error: $e");
+    }
+    
+    _startNotificationLoop();
   }
 
   @override
@@ -265,7 +295,7 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
   }
 
   void _startNotificationLoop() {
-    // Checks every 15 minutes in background simulation
+    // Har 15 minute mein check karega (Simulation)
     _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
       int pending = todos.where((t) => t['completed'] == false).length;
       if (pending > 0) {
@@ -275,25 +305,29 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
   }
 
   Future<void> _sendClickbaitNotification(int count) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-      'taskmaster_channel', 'Task Reminders',
-      channelDescription: 'Reminds you to complete tasks',
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker'
-    );
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+    // Agar plugin initialize nahi hua to crash se bacho
+    try {
+        const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+          'taskmaster_channel', 'Task Reminders',
+          channelDescription: 'Reminds you to complete tasks',
+          importance: Importance.max,
+          priority: Priority.high,
+        );
+        const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
 
-    List<String> titles = ["🤑 Opportunity Missed?", "⚠ URGENT: Action Required", "Don't be lazy! 😡", "One Step Closer...", "Tasks pending = Money lost 📉"];
-    List<String> bodies = ["You have $count tasks waiting!", "Finish your $count tasks to be a Hero.", "Your productivity is dropping.", "Clear the backlog now!"];
+        List<String> titles = ["🤑 Opportunity Missed?", "⚠ URGENT: Action Required", "Don't be lazy! 😡", "Tasks pending = Money lost 📉"];
+        List<String> bodies = ["You have $count tasks waiting!", "Finish your $count tasks to be a Hero.", "Your productivity is dropping."];
 
-    var random = Random();
-    await flutterLocalNotificationsPlugin.show(
-      0, 
-      titles[random.nextInt(titles.length)], 
-      bodies[random.nextInt(bodies.length)], 
-      platformChannelSpecifics
-    );
+        var random = Random();
+        await flutterLocalNotificationsPlugin.show(
+          0, 
+          titles[random.nextInt(titles.length)], 
+          bodies[random.nextInt(bodies.length)], 
+          platformChannelSpecifics
+        );
+    } catch (e) {
+        print("Notification Send Error: $e");
+    }
   }
 
   // --- DATA OPERATIONS ---
@@ -502,7 +536,7 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                         ],
                       ),
                       const SizedBox(height: 20),
-  // Progress Bar
+                      // Progress Bar
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(value: _getProgress(), minHeight: 8, backgroundColor: theme.dividerColor, valueColor: AlwaysStoppedAnimation(cPrimary)),

@@ -13,7 +13,7 @@ dependencies:
   shared_preferences: ^2.2.0
   # Design & Fonts
   google_fonts: ^5.1.0
-  # FIXED: Updated version specifically for Codemagic
+  # FIXED: Version for Codemagic
   lucide_icons: ^0.257.0
   confetti: ^0.7.0
   # Date & Time Utils
@@ -31,16 +31,13 @@ dev_dependencies:
 flutter:
   uses-material-design: true
   
-  # YAHAN SE LOGO SPLASH SCREEN KE LIYE UTHEGA
   assets:
     - logo.png
 
 # --- APP ICON CONFIGURATION ---
-# Ye niche wala part tumhare logo.png ko
-# Mobile Home Screen ka Icon banayega
 flutter_launcher_icons:
   android: "launcher_icon"
-  ios: true
+  ios: false            # <--- YAHAN CHANGE KIYA HAI (Taki error na aaye)
   image_path: "logo.png"
   min_sdk_android: 21
   

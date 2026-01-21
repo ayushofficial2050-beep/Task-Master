@@ -8,41 +8,20 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:confetti/confetti.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // =================================================================
-// GLOBAL CONFIGURATION & SETUP
+// GLOBAL CONFIGURATION
 // =================================================================
 
-final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 final ValueNotifier<ThemeMode> _themeNotifier = ValueNotifier(ThemeMode.dark);
 
 void main() async {
-  // 1. App Start hone se pehle bindings ensure karo
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 2. Theme Preference Load karo
+  // 1. Load Theme Preference
   final prefs = await SharedPreferences.getInstance();
   final isDark = prefs.getBool('isDark') ?? true;
   _themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
-
-  // 3. Initialize Notifications (CRASH PROOF METHOD) 🛡️
-  // Hum isse Try-Catch me daal rahe hain taaki agar icon na mile to app band na ho.
-  try {
-    const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    
-    const InitializationSettings initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-    );
-    
-    await flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (details) {},
-    );
-  } catch (e) {
-    // Agar error aaya to console me dikhega, par user ka app band nahi hoga
-    print("⚠️ Notification Init Error: $e");
-  }
 
   runApp(const TaskMasterApp());
 }
@@ -89,7 +68,7 @@ class TaskMasterApp extends StatelessWidget {
 }
 
 // =================================================================
-// 1. SPLASH SCREEN (Logo Fix applied)
+// 1. SPLASH SCREEN
 // =================================================================
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -128,7 +107,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    // Splash screen hamesha Black rahega (Cinematic look)
     return Scaffold(
       backgroundColor: Colors.black, 
       body: Center(
@@ -140,9 +118,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF6C63FF).withOpacity(0.1)),
-                // UPDATED: Logo Handling 🖼️
-                // Ye root folder se logo.png uthayega.
-                // Agar nahi mila to Backup Icon dikhayega.
+                // Logo Handling: Agar logo nahi mila to Icon dikhayega
                 child: Image.asset(
                   'logo.png', 
                   width: 120, 
@@ -165,78 +141,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 }
 
 // =================================================================
-// 2. INFO SCREENS (About & Privacy)
-// =================================================================
-
-class InfoScreen extends StatelessWidget {
-  final String title;
-  final String contentType; // 'privacy' or 'about'
-
-  const InfoScreen({super.key, required this.title, required this.contentType});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    
-    List<Widget> contentWidgets = [];
-    if (contentType == 'privacy') {
-      contentWidgets = [
-        _sectionTitle("1. Introduction", theme),
-        _sectionBody("Welcome to TaskMasterHero. We prioritize your privacy. This app functions primarily as an offline Native App."),
-        const SizedBox(height: 15),
-        _sectionTitle("2. Data Collection", theme),
-        _sectionBody("We do not store your tasks on our servers. All task data is stored locally on your device via SharedPreferences. If you clear your app data, tasks will be lost."),
-        const SizedBox(height: 15),
-        _sectionTitle("3. Permissions", theme),
-        _sectionBody("We ask for Notification permissions solely to remind you of your pending tasks."),
-      ];
-    } else {
-      contentWidgets = [
-        _sectionTitle("About TaskMaster", theme),
-        _sectionBody("TaskMaster Hero is designed to keep you productive without distractions. Built with a focus on speed and simplicity."),
-        const SizedBox(height: 15),
-        _sectionTitle("Developer", theme),
-        _sectionBody("Developed by FST Havoc (Ayush Tiwari)."),
-        const SizedBox(height: 15),
-        _sectionTitle("Version", theme),
-        _sectionBody("v1.0.0 (Native Build)"),
-      ];
-    }
-
-    return Scaffold(
-      appBar: AppBar(title: Text(title), backgroundColor: theme.scaffoldBackgroundColor, elevation: 0),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Text(contentType == 'privacy' ? "Last updated: Jan 2026" : "Made with ❤️ in India", style: TextStyle(color: theme.primaryColor, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          ...contentWidgets,
-          const SizedBox(height: 15),
-          _sectionTitle("Contact", theme),
-          _sectionBody("ayushofficial2050@gmail.com"),
-          const SizedBox(height: 30),
-          Center(
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(backgroundColor: theme.primaryColor, foregroundColor: Colors.white),
-              child: const Text("Back to App"),
-            ),
-          )
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionTitle(String text, ThemeData theme) {
-    return Text(text, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color));
-  }
-  Widget _sectionBody(String text) {
-    return Padding(padding: const EdgeInsets.only(top: 5), child: Text(text, style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey, height: 1.5)));
-  }
-}
-
-// =================================================================
-// 3. MAIN HOME SCREEN (Core Logic)
+// 2. MAIN HOME SCREEN
 // =================================================================
 class TodoHome extends StatefulWidget {
   const TodoHome({super.key});
@@ -256,7 +161,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
   bool isMenuOpen = false;
   bool isBulkMode = false;
   int? currentEditId;
-  Timer? _notificationTimer;
 
   // Colors
   final Color cPrimary = const Color(0xFF6C63FF);
@@ -269,15 +173,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
     _loadTodos();
-    
-    // Permission maangne ke liye Safe Mode
-    try {
-      _requestPermissions();
-    } catch (e) {
-      print("Permission Request Error: $e");
-    }
-    
-    _startNotificationLoop();
   }
 
   @override
@@ -285,49 +180,7 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     _confettiController.dispose();
     _inputController.dispose();
     _editSheetController.dispose();
-    _notificationTimer?.cancel();
     super.dispose();
-  }
-
-  // --- NOTIFICATION LOGIC ---
-  void _requestPermissions() {
-    flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
-  }
-
-  void _startNotificationLoop() {
-    // Har 15 minute mein check karega (Simulation)
-    _notificationTimer = Timer.periodic(const Duration(minutes: 15), (timer) {
-      int pending = todos.where((t) => t['completed'] == false).length;
-      if (pending > 0) {
-        _sendClickbaitNotification(pending);
-      }
-    });
-  }
-
-  Future<void> _sendClickbaitNotification(int count) async {
-    // Agar plugin initialize nahi hua to crash se bacho
-    try {
-        const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
-          'taskmaster_channel', 'Task Reminders',
-          channelDescription: 'Reminds you to complete tasks',
-          importance: Importance.max,
-          priority: Priority.high,
-        );
-        const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
-
-        List<String> titles = ["🤑 Opportunity Missed?", "⚠ URGENT: Action Required", "Don't be lazy! 😡", "Tasks pending = Money lost 📉"];
-        List<String> bodies = ["You have $count tasks waiting!", "Finish your $count tasks to be a Hero.", "Your productivity is dropping."];
-
-        var random = Random();
-        await flutterLocalNotificationsPlugin.show(
-          0, 
-          titles[random.nextInt(titles.length)], 
-          bodies[random.nextInt(bodies.length)], 
-          platformChannelSpecifics
-        );
-    } catch (e) {
-        print("Notification Send Error: $e");
-    }
   }
 
   // --- DATA OPERATIONS ---
@@ -505,11 +358,9 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     return Scaffold(
       body: Stack(
         children: [
-          // ================= CONTENT =================
           SafeArea(
             child: Column(
               children: [
-                // Header
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -536,7 +387,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                         ],
                       ),
                       const SizedBox(height: 20),
-                      // Progress Bar
                       ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(value: _getProgress(), minHeight: 8, backgroundColor: theme.dividerColor, valueColor: AlwaysStoppedAnimation(cPrimary)),
@@ -544,7 +394,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                       const SizedBox(height: 8),
                       Align(alignment: Alignment.centerRight, child: Text("${(_getProgress() * 100).toInt()}% Done", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12))),
                       const SizedBox(height: 15),
-                      // Filters
                       SingleChildScrollView(
                         scrollDirection: Axis.horizontal,
                         child: Row(
@@ -560,8 +409,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                     ],
                   ),
                 ),
-
-                // Sticky Input Area
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Container(
@@ -602,8 +449,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                     ),
                   ),
                 ),
-                
-                // Task List
                 Expanded(
                   child: _visibleTodos.isEmpty 
                   ? Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(LucideIcons.list, size: 50, color: Colors.grey.withOpacity(0.5)), const SizedBox(height: 10), Text("No tasks yet!", style: GoogleFonts.outfit(color: Colors.grey))]))
@@ -615,16 +460,7 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                         final bool isCompleted = todo['completed'];
                         final bool isSelected = todo['selected'] ?? false;
                         
-                        // Rotting Logic (Time Difference)
-                        final hoursOld = DateTime.now().difference(DateTime.fromMillisecondsSinceEpoch(todo['createdAt'])).inHours;
                         Color borderColor = theme.dividerColor;
-                        double opacity = 1.0;
-                        
-                        if (hoursOld > 72 && !isCompleted) {
-                          borderColor = cDanger.withOpacity(0.5); // Rotten
-                        } else if (hoursOld > 24 && !isCompleted) {
-                          opacity = 0.6; // Stale
-                        }
                         if (isSelected) borderColor = cPrimary;
 
                         return GestureDetector(
@@ -635,7 +471,7 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
                             decoration: BoxDecoration(
-                              color: isSelected ? cPrimary.withOpacity(0.1) : theme.cardColor.withOpacity(opacity),
+                              color: isSelected ? cPrimary.withOpacity(0.1) : theme.cardColor,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: borderColor),
                               boxShadow: isSelected ? [] : [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 5, offset: const Offset(0, 2))]
@@ -662,19 +498,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                                     ),
                                   ),
                                 ),
-                                if (!isBulkMode)
-                                  GestureDetector(
-                                    onTap: () => _openEditSheet(todo['id']),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: todo['energy'] == 'high' ? cEnergyHigh.withOpacity(0.1) : cEnergyLow.withOpacity(0.1),
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(color: todo['energy'] == 'high' ? cEnergyHigh.withOpacity(0.2) : cEnergyLow.withOpacity(0.2))
-                                      ),
-                                      child: Text(todo['energy'] == 'high' ? "HIGH" : "LOW", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: todo['energy'] == 'high' ? cEnergyHigh : cEnergyLow)),
-                                    ),
-                                  ),
                               ],
                             ),
                           ),
@@ -685,11 +508,8 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
               ],
             ),
           ),
-
-          // ================= OVERLAYS =================
           Align(alignment: Alignment.topCenter, child: ConfettiWidget(confettiController: _confettiController, blastDirectionality: BlastDirectionality.explosive, numberOfParticles: 20, gravity: 0.2)),
           
-          // Sidebar
           if (isMenuOpen) GestureDetector(onTap: () => setState(() => isMenuOpen = false), child: Container(color: Colors.black.withOpacity(0.5))),
           AnimatedPositioned(
             duration: const Duration(milliseconds: 300),
@@ -698,37 +518,11 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
             top: 0, bottom: 0, width: 300,
             child: _buildSidebar(theme, isDark),
           ),
-
-          // Bulk Controls
-          if (isBulkMode)
-            Positioned(
-              bottom: 30, left: 20, right: 20,
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(color: theme.cardColor, borderRadius: BorderRadius.circular(20), border: Border.all(color: theme.dividerColor), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 20)]),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    TextButton.icon(onPressed: () {
-                         bool allSelected = todos.every((t) => t['selected'] == true);
-                         setState(() {
-                             for (var t in todos) t['selected'] = !allSelected;
-                         });
-                    }, icon: Icon(LucideIcons.checkSquare, color: theme.iconTheme.color), label: Text("All", style: TextStyle(color: theme.textTheme.bodyMedium?.color))),
-                    Container(width: 1, height: 20, color: theme.dividerColor),
-                    TextButton.icon(onPressed: _deleteSelected, icon: Icon(LucideIcons.trash2, color: cDanger), label: Text("Delete", style: TextStyle(color: cDanger))),
-                    Container(width: 1, height: 20, color: theme.dividerColor),
-                    IconButton(onPressed: () => setState(() => isBulkMode = false), icon: Icon(LucideIcons.x, color: theme.iconTheme.color))
-                  ],
-                ),
-              ),
-            )
         ],
       ),
     );
   }
 
-  // --- WIDGET BUILDERS ---
   Widget _buildFilter(String label, String val, ThemeData theme) {
     bool isActive = filter == val;
     return GestureDetector(
@@ -766,7 +560,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
               child: ListView(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 children: [
-                  // THEME TOGGLE
                   _menuItem(LucideIcons.moon, "Dark Mode", theme, trailing: Switch(
                     value: isDark, 
                     activeColor: cPrimary,
@@ -776,23 +569,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                        prefs.setBool('isDark', val);
                     }
                   )),
-                  // UPDATED LINKS
-                  InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const InfoScreen(title: "Privacy Policy", contentType: 'privacy'))),
-                    child: _menuItem(LucideIcons.shield, "Privacy Policy", theme),
-                  ),
-                  InkWell(
-                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const InfoScreen(title: "About Us", contentType: 'about'))),
-                    child: _menuItem(LucideIcons.info, "About Us", theme),
-                  ),
-
-                  const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: isDark ? const Color(0xFF1F1F1F) : const Color(0xFFF0F0F0), borderRadius: BorderRadius.circular(16)),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text("Today's Progress", style: TextStyle(fontWeight: FontWeight.bold)), const SizedBox(height: 10), ClipRRect(borderRadius: BorderRadius.circular(4), child: LinearProgressIndicator(value: _getProgress(), backgroundColor: theme.dividerColor, valueColor: AlwaysStoppedAnimation(cPrimary))), const SizedBox(height: 5), const Text("Consistency beats motivation 🚀", style: TextStyle(color: Colors.grey, fontSize: 10))]),
-                  ),
-                  const SizedBox(height: 20),
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Reset All Data", style: TextStyle(color: Color(0xFFFF4757), fontWeight: FontWeight.bold)),
@@ -823,4 +599,4 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
       ),
     );
   }
-}
+} 

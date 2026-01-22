@@ -8,21 +8,26 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:confetti/confetti.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 // =================================================================
-// GLOBAL CONFIGURATION
+// GLOBAL SETUP
 // =================================================================
 
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin = FlutterLocalNotificationsPlugin();
 final ValueNotifier<ThemeMode> _themeNotifier = ValueNotifier(ThemeMode.dark);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // 1. Load Theme Preference
+  // Theme Load
   final prefs = await SharedPreferences.getInstance();
   final isDark = prefs.getBool('isDark') ?? true;
   _themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
 
+  // NOTE: Notification Init ko yahan se hata kar Home Screen me daal diya hai
+  // taaki "Startup Crash" na ho.
+  
   runApp(const TaskMasterApp());
 }
 
@@ -38,7 +43,7 @@ class TaskMasterApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'TaskMaster Hero',
           themeMode: mode,
-          // --- Light Theme ---
+          // Light Theme
           theme: ThemeData(
             brightness: Brightness.light,
             scaffoldBackgroundColor: const Color(0xFFF2F4F7),
@@ -49,7 +54,7 @@ class TaskMasterApp extends StatelessWidget {
             textTheme: GoogleFonts.outfitTextTheme(ThemeData.light().textTheme),
             useMaterial3: true,
           ),
-          // --- Dark Theme ---
+          // Dark Theme
           darkTheme: ThemeData(
             brightness: Brightness.dark,
             scaffoldBackgroundColor: const Color(0xFF0A0A0A),
@@ -68,7 +73,7 @@ class TaskMasterApp extends StatelessWidget {
 }
 
 // =================================================================
-// 1. SPLASH SCREEN
+// 1. SPLASH SCREEN (Safe Logo)
 // =================================================================
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -87,7 +92,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     _scaleAnimation = Tween<double>(begin: 0.8, end: 1.1).animate(CurvedAnimation(parent: _controller, curve: Curves.easeInOut));
     _controller.forward();
     
-    // 2.5 second baad Home Screen par bhejo
     Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(PageRouteBuilder(
@@ -118,7 +122,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
               child: Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(shape: BoxShape.circle, color: const Color(0xFF6C63FF).withOpacity(0.1)),
-                // Logo Handling: Agar logo nahi mila to Icon dikhayega
+                // Logo Safe Load
                 child: Image.asset(
                   'logo.png', 
                   width: 120, 
@@ -141,7 +145,70 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 }
 
 // =================================================================
-// 2. MAIN HOME SCREEN
+// 2. INFO SCREENS (Restored!) ✅
+// =================================================================
+
+class InfoScreen extends StatelessWidget {
+  final String title;
+  final String contentType; // 'privacy' or 'about'
+
+  const InfoScreen({super.key, required this.title, required this.contentType});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    
+    List<Widget> contentWidgets = [];
+    if (contentType == 'privacy') {
+      contentWidgets = [
+        _sectionTitle("1. Privacy First", theme),
+        _sectionBody("TaskMaster Hero is an offline-first app. We do not store your personal data on any server."),
+        const SizedBox(height: 15),
+        _sectionTitle("2. Local Storage", theme),
+        _sectionBody("All your tasks are stored locally on your device."),
+      ];
+    } else {
+      contentWidgets = [
+        _sectionTitle("About TaskMaster", theme),
+        _sectionBody("Designed for focus and speed. Built for Heroes."),
+        const SizedBox(height: 15),
+        _sectionTitle("Developer", theme),
+        _sectionBody("Created by FST Havoc (Ayush Tiwari)."),
+        const SizedBox(height: 15),
+        _sectionTitle("Version", theme),
+        _sectionBody("v8.0 (Native Android)"),
+      ];
+    }
+
+    return Scaffold(
+      appBar: AppBar(title: Text(title), backgroundColor: theme.scaffoldBackgroundColor, elevation: 0),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          ...contentWidgets,
+          const SizedBox(height: 30),
+          Center(
+            child: ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              style: ElevatedButton.styleFrom(backgroundColor: theme.primaryColor, foregroundColor: Colors.white),
+              child: const Text("Back"),
+            ),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _sectionTitle(String text, ThemeData theme) {
+    return Text(text, style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.bold, color: theme.textTheme.bodyLarge?.color));
+  }
+  Widget _sectionBody(String text) {
+    return Padding(padding: const EdgeInsets.only(top: 5), child: Text(text, style: GoogleFonts.outfit(fontSize: 14, color: Colors.grey, height: 1.5)));
+  }
+}
+
+// =================================================================
+// 3. MAIN HOME SCREEN
 // =================================================================
 class TodoHome extends StatefulWidget {
   const TodoHome({super.key});
@@ -150,7 +217,7 @@ class TodoHome extends StatefulWidget {
 }
 
 class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
-  // --- STATE VARIABLES ---
+  // State
   List<Map<String, dynamic>> todos = [];
   final TextEditingController _inputController = TextEditingController();
   final TextEditingController _editSheetController = TextEditingController();
@@ -173,6 +240,8 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     super.initState();
     _confettiController = ConfettiController(duration: const Duration(seconds: 1));
     _loadTodos();
+    // Notification Init ko yahan Safe Mode me call kiya hai
+    _initNotificationsSafely();
   }
 
   @override
@@ -181,6 +250,45 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
     _inputController.dispose();
     _editSheetController.dispose();
     super.dispose();
+  }
+
+  // --- SAFE NOTIFICATION LOGIC (Chhota Feature) --- ✅
+  Future<void> _initNotificationsSafely() async {
+    try {
+      // 1. Init Settings
+      const AndroidInitializationSettings initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const InitializationSettings initializationSettings = InitializationSettings(android: initializationSettingsAndroid);
+      
+      // 2. Initialize Plugin
+      await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+      // 3. Ask Permission (Android 13+)
+      await flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()?.requestNotificationsPermission();
+
+    } catch (e) {
+      // Agar crash hua to bas ignore karega, App band nahi hoga
+      print("Notification Init Failed (Safe Mode): $e");
+    }
+  }
+
+  Future<void> _showSimpleNotification() async {
+    // Ye function tab call hoga jab user task add karega (Test ke liye)
+    try {
+      const AndroidNotificationDetails androidPlatformChannelSpecifics = AndroidNotificationDetails(
+        'taskmaster_channel', 'Task Updates',
+        importance: Importance.max, priority: Priority.high,
+      );
+      const NotificationDetails platformChannelSpecifics = NotificationDetails(android: androidPlatformChannelSpecifics);
+      
+      await flutterLocalNotificationsPlugin.show(
+        0, 
+        'Task Added! 🚀', 
+        'Now go and finish it like a Hero.', 
+        platformChannelSpecifics
+      );
+    } catch (e) {
+      print("Notification Show Failed: $e");
+    }
   }
 
   // --- DATA OPERATIONS ---
@@ -218,6 +326,8 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
       _saveTodos();
     });
     _triggerHaptic('add');
+    // Simple Notification Trigger
+    _showSimpleNotification(); 
   }
 
   void _toggleTask(int id) {
@@ -373,7 +483,6 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                             children: [
                               Text("${_getGreeting()}, Hero 👋", style: GoogleFonts.outfit(color: Colors.grey, fontWeight: FontWeight.w500)),
                               Text("My Tasks", style: GoogleFonts.outfit(fontSize: 28, fontWeight: FontWeight.bold)),
-                              Text(DateFormat('EEEE, MMM d').format(DateTime.now()), style: TextStyle(color: cPrimary, fontWeight: FontWeight.bold, fontSize: 12)),
                             ],
                           ),
                           GestureDetector(
@@ -569,6 +678,16 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
                        prefs.setBool('isDark', val);
                     }
                   )),
+                  // --- Restored Buttons --- ✅
+                  InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const InfoScreen(title: "Privacy Policy", contentType: 'privacy'))),
+                    child: _menuItem(LucideIcons.shield, "Privacy Policy", theme),
+                  ),
+                  InkWell(
+                    onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const InfoScreen(title: "About Us", contentType: 'about'))),
+                    child: _menuItem(LucideIcons.info, "About Us", theme),
+                  ),
+
                   ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text("Reset All Data", style: TextStyle(color: Color(0xFFFF4757), fontWeight: FontWeight.bold)),
@@ -599,4 +718,4 @@ class _TodoHomeState extends State<TodoHome> with TickerProviderStateMixin {
       ),
     );
   }
-} 
+}
